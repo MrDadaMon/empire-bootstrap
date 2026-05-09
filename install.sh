@@ -176,8 +176,10 @@ else
 fi
 
 # Point Hermes at Opus 4.7 via the Anthropic provider.
+# NOTE: top-level key is `model` (not model.default); `model.provider` is the
+# nested provider override. Hermes config set takes dotted keys.
 hermes config set model.provider anthropic                || true
-hermes config set model.default anthropic/claude-opus-4-7 || true
+hermes config set model anthropic/claude-opus-4-7         || true
 
 # Critical: clear ANTHROPIC_API_KEY. Max plan does not include API credits;
 # if a key is present Hermes prefers it and fails with HTTP 400
