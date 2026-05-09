@@ -1,0 +1,511 @@
+{
+  "jobs": [
+    {
+      "id": "5660b3f104fb",
+      "name": "SQLite-bus migration trigger check",
+      "prompt": "Run the monthly check for SQLite\u2192Redis/NATS migration triggers per AI-Agent-Bible/02-Operating-Methodology/04-Claude-Code-Ops/co-tenancy-and-coordination.md (\u00a7 FUTURE-MIGRATION ALERT).\n\nCheck each trigger:\n1. Agent count per machine: `python3 /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/tenancy.py status` \u2014 count agents. Flag if any machine has >10.\n2. Multi-machine bus deployment: check if HERMES_HOME is shared across hosts (look for tenancy.yaml entries with different `machine:` values). Flag if yes.\n3. Bus publish latency: time 100 publishes to a test topic. Flag if p95 >100ms.\n   ```bash\n   python3 -c \"\n   import time, statistics\n   from sys import path; path.insert(0, '/Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts')\n   from bus import Bus\n   b = Bus(agent='migration-check')\n   ts = []\n   for i in range(100):\n     t0=time.perf_counter(); b.publish('migration.latency.probe', {'i':i}); ts.append((time.perf_counter()-t0)*1000)\n   ts.sort(); print(f'p50={ts[50]:.1f}ms p95={ts[95]:.1f}ms max={ts[-1]:.1f}ms')\n   \"\n   ```\n4. Fan-out demand: check if any agent has >3 consumers on the same topic (query consumer_cursors).\n\nOutput a brief report to Telegram:\n- \u2705 All triggers green (continue with SQLite) \u2014 OR \u2014\n- \u26a0\ufe0f Trigger fired: <which one(s)> \u2014 recommend scheduling migration to Redis/NATS\n\nKeep it concise. If all green, one line is fine. If a trigger fires, include the metric and the migration checklist link.",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 9 1 * *",
+        "display": "0 9 1 * *"
+      },
+      "schedule_display": "0 9 1 * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T00:20:24.144135-07:00",
+      "next_run_at": "2026-06-01T09:00:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "origin",
+      "origin": {
+        "platform": "telegram",
+        "chat_id": "6286344444",
+        "chat_name": "10k",
+        "thread_id": null
+      },
+      "enabled_toolsets": [
+        "terminal",
+        "file"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "285c44b22bd0",
+      "name": "Context-dump retention sweep",
+      "prompt": "Run the context-dump retention sweep by invoking the canonical overlay tool:\n\n```\npython3 /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/tools/sweep_context_dumps.py\n```\n\nThis script enforces the default 30-day retention policy on ~/.hermes/context_dumps/\n(honoring HERMES_HOME) and removes empty session directories.\n\nReport stdout/stderr verbatim and any non-zero exit. Do not schedule additional cron jobs.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[context-dump-retention-sweep] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 5 * * *",
+        "display": "0 5 * * *"
+      },
+      "schedule_display": "0 5 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 1
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T01:10:58.888304-07:00",
+      "next_run_at": "2026-05-09T05:00:00-07:00",
+      "last_run_at": "2026-05-08T05:01:00.663947-07:00",
+      "last_status": "ok",
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "origin",
+      "origin": {
+        "platform": "telegram",
+        "chat_id": "6286344444",
+        "chat_name": "10k",
+        "thread_id": null
+      },
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "4e378a756510",
+      "name": "pi-harness-reevaluation-2026-11-08",
+      "prompt": "Re-evaluate Pi (earendil-works/pi) as a candidate harness for 2XM22. Three trigger questions: (1) Did Claude Code do something hostile to our stack in the last 6 months \u2014 silent tool changes, auth breakage, hostile pricing? (2) Have we built a non-coding agent that fits Pi-bare-runtime better than Claude-Code? (3) Has Pi added first-class MCP + approval-gate primitives? If 2+ yes, recommend migration. If 0-1, defer another 6 months and reschedule. Read /Users/mejia/supa-work/AI-Agent-Bible/01-Ai-Agent-Principles/01-Load-Bearing-Rules/agent-harness-policy.md \u00a76 for context. Send Isaiah a Telegram summary with recommendation + reasoning.",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "once",
+        "run_at": "2026-11-08T09:00:00-08:00",
+        "display": "once at 2026-11-08 09:00"
+      },
+      "schedule_display": "once at 2026-11-08 09:00",
+      "repeat": {
+        "times": 1,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T12:43:04.373895-07:00",
+      "next_run_at": "2026-11-08T09:00:00-08:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "origin",
+      "origin": null,
+      "enabled_toolsets": null,
+      "workdir": null
+    },
+    {
+      "id": "74e5371b7699",
+      "name": "promotion-queue-rebuild",
+      "prompt": "Run the daily raw\u2192wiki promotion queue rebuild per AI-Agent-Bible/00-2XM22-Architecture-Atlas/07-Daily-Operations.md. Execute: bash /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/promotion_queue_rebuild.sh and report exit code + tail of any output.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[promotion-queue-rebuild] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "15 4 * * *",
+        "display": "15 4 * * *"
+      },
+      "schedule_display": "15 4 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T17:50:55.931879-07:00",
+      "next_run_at": "2026-05-09T04:15:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "94cd468724e9",
+      "name": "weekly-reranker-audit",
+      "prompt": "Run the weekly reranker rebuild + cross-vault integrity audit per AI-Agent-Bible/00-2XM22-Architecture-Atlas/07-Daily-Operations.md. Execute: bash /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/weekly_reranker_audit.sh and summarize results.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[weekly-reranker-audit] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 23 * * 0",
+        "display": "0 23 * * 0"
+      },
+      "schedule_display": "0 23 * * 0",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T17:50:56.942804-07:00",
+      "next_run_at": "2026-05-10T23:00:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "8e8c5394c426",
+      "name": "kg-nightly-validate",
+      "prompt": "Run nightly knowledge-graph validation per AI-Agent-Bible/02-Operating-Methodology/02-Core-Methodology/knowledge-graph-schema.md. Execute: bash /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/kg_nightly_validate.sh and report any validation errors.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[kg-nightly-validate] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "30 4 * * *",
+        "display": "30 4 * * *"
+      },
+      "schedule_display": "30 4 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T17:50:57.957438-07:00",
+      "next_run_at": "2026-05-09T04:30:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "15375bf768a2",
+      "name": "tenancy-sweep",
+      "prompt": "Run the tenancy sweep per AI-Agent-Bible/02-Operating-Methodology/04-Claude-Code-Ops/co-tenancy-and-coordination.md. Execute: python3 /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/sweep_tenancy.py and report any reaped agents or released resources. Stay silent if output is just \"sweep: clean\".\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[tenancy-sweep] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/2 * * * *",
+        "display": "*/2 * * * *"
+      },
+      "schedule_display": "*/2 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 178
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T17:50:58.973882-07:00",
+      "next_run_at": "2026-05-08T23:48:00-07:00",
+      "last_run_at": "2026-05-08T23:46:47.517359-07:00",
+      "last_status": "ok",
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "59ac24a90179",
+      "name": "daily-audit",
+      "prompt": "Run daily audit per AI-Agent-Bible/02-Operating-Methodology/04-Claude-Code-Ops/daily-backup.md. Execute: bash /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/daily_audit.sh and report findings.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[daily-audit] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 4 * * *",
+        "display": "0 4 * * *"
+      },
+      "schedule_display": "0 4 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T17:50:59.988880-07:00",
+      "next_run_at": "2026-05-09T04:00:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "e911e85f5fc8",
+      "name": "daily-backup",
+      "prompt": "Run daily 3-layer backup per AI-Agent-Bible/02-Operating-Methodology/04-Claude-Code-Ops/daily-backup.md. Execute: bash /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/daily_backup.sh and report exit code plus any failures.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[daily-backup] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "30 3 * * *",
+        "display": "30 3 * * *"
+      },
+      "schedule_display": "30 3 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T17:51:00.998460-07:00",
+      "next_run_at": "2026-05-09T03:30:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "58a8e71be61a",
+      "name": "notebooklm-sync",
+      "prompt": "Run NotebookLM bundle sync: `cd /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay && python3 scripts/sync_notebooklm_summaries.py --json`. Report bundles_total and any changed entries.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[notebooklm-sync] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "interval",
+        "minutes": 360,
+        "display": "every 360m"
+      },
+      "schedule_display": "every 360m",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T17:52:33.923594-07:00",
+      "next_run_at": "2026-05-08T23:52:33.923638-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "194dd7d9b6cd",
+      "name": "empire-rollup-heimdall-eyes",
+      "prompt": "Run the daily Heimdall's Eyes telemetry rollup.\n\nExecute: bash /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/rollup.sh\n\nThis aggregates yesterday's cron output, decision_gate audit log, override audit dir, and agent telemetry into /Users/mejia/supa-work/Mejia-Vault/_empire/rollups/YYYY-MM-DD.md.\n\nVerify the output file was written. If the script fails, report the error.\n\nIf the script exits non-zero, run /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh \"[empire-rollup-heimdall-eyes] failed: <error summary>\" crit",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 4 * * *",
+        "display": "0 4 * * *"
+      },
+      "schedule_display": "0 4 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T18:25:41.614777-07:00",
+      "next_run_at": "2026-05-09T04:00:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file"
+      ],
+      "workdir": null
+    },
+    {
+      "id": "3e960252db6b",
+      "name": "Auditor Monthly Audit",
+      "prompt": "Run the Auditor agent for the prior 30-day window and save its report to Mejia-Vault/_empire/audits/.\n\nSteps:\n1. cd /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay\n2. Run: AUDITOR_NO_LLM=0 python3 tools/auditor_agent.py --days 30\n   (If router/LLM call fails or hangs >2min, fall back to AUDITOR_NO_LLM=1.)\n3. Parse JSON output. Capture report_path and high_findings.\n4. If high_findings > 0:\n   - Read the report at report_path.\n   - Send a Telegram alert to the operator with:\n     - Subject: \"\ud83d\udea8 Auditor: {high_findings} HIGH finding(s)\"\n     - Period covered, list each HIGH finding's code + title, and the report_path.\n5. If high_findings == 0, deliver locally only \u2014 no telegram alert. Print a one-line summary.\n\nReturn: report_path, high_findings count, and whether an alert was sent.",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 6 1 * *",
+        "display": "0 6 1 * *"
+      },
+      "schedule_display": "0 6 1 * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T19:29:14.921799-07:00",
+      "next_run_at": "2026-06-01T06:00:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file"
+      ],
+      "workdir": "/Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay"
+    },
+    {
+      "id": "d1a18f837d8d",
+      "name": "vault_backup_encrypt",
+      "prompt": "Run the encrypted vault backup. Execute: bash /Users/mejia/supa-work/Mejia-Supa-Hermes-Overlay/scripts/vault_backup_encrypt.sh\n\nThe script handles its own logging (var/log/vault_backup.log), telegram alerts on failure (via telegram_alert.sh ... crit), and rotation (keeps last 30 backups). It is idempotent and self-contained.\n\nVerify exit code 0. If non-zero: the script already sent the telegram alert; just summarize the failure reason from script stdout/stderr. If zero: report the latest backup filename pushed to mejia-vault-encrypted.\n\nDo not schedule additional cron jobs.",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "base_url": null,
+      "script": null,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 3 * * *",
+        "display": "0 3 * * *"
+      },
+      "schedule_display": "0 3 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-05-08T20:48:18.447743-07:00",
+      "next_run_at": "2026-05-09T03:00:00-07:00",
+      "last_run_at": null,
+      "last_status": null,
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "local",
+      "origin": null,
+      "enabled_toolsets": [
+        "terminal",
+        "file"
+      ],
+      "workdir": null
+    }
+  ],
+  "updated_at": "2026-05-08T23:46:47.518768-07:00"
+}
