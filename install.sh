@@ -80,23 +80,69 @@ source "$HOME/.env.empire"
 grep -q '.env.empire' "$HOME/.zshrc" 2>/dev/null || \
   echo '[ -f ~/.env.empire ] && source ~/.env.empire' >> "$HOME/.zshrc"
 
-echo "── P5.5: Claude Code CLI (Anthropic OAuth)"
+echo "── P5.5: Claude Code CLI + Max-subscription OAuth"
 if ! command -v claude &>/dev/null; then
   npm install -g @anthropic-ai/claude-code || sudo npm install -g @anthropic-ai/claude-code
 fi
 echo "✅ Claude Code installed: $(claude --version 2>&1 | head -1)"
-echo ""
-echo "⚠️  After Hermes setup wizard starts, you'll need to:"
-echo "   1. Pick option 1 (Claude Pro/Max OAuth)"
-echo "   2. In a SEPARATE terminal, run: claude setup-token"
-echo "   3. Authorize in browser, copy the sk-ant-oat-... token"
-echo "   4. Paste it back into the hermes wizard"
-echo ""
-read -p "Press Enter to continue to Hermes installer..."
+
+# Authenticate Claude Code against the Max/Pro subscription (browser flow).
+# This stores credentials in the macOS Keychain under "Claude Code-credentials"
+# and is the source of truth used by the hermes-claude-auth patch in P6.5.
+if ! security find-generic-password -s "Claude Code-credentials" -w &>/dev/null; then
+  echo "🔐 Logging Claude Code into your Max/Pro subscription (browser will open)..."
+  if [ -t 0 ]; then
+    claude auth login --claudeai || {
+      echo "❌ claude auth login failed — re-run manually:  claude auth login --claudeai"
+      exit 1
+    }
+  else
+    echo "❌ Need interactive stdin for 'claude auth login --claudeai'."
+    echo "   Re-run install.sh from a real terminal (not curl|bash)."
+    exit 1
+  fi
+else
+  echo "✅ Claude Code credentials already in Keychain"
+fi
 
 # P6: Hermes / Claude Code agent
 echo "── P6: Hermes agent"
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+
+# P6.5: Wire Hermes to the Max subscription (April-2025 OAuth lockdown patch)
+# Anthropic patched their API on 2025-04-04 to reject OAuth requests from any
+# client other than Claude Code itself. The hermes-claude-auth patch restores
+# compatibility by injecting the billing-header signature + system-prompt shape
+# Anthropic now requires, hooked in via sitecustomize.py.
+echo "── P6.5: hermes-claude-auth patch + Hermes model config"
+if [ ! -f "$HOME/.hermes/patches/anthropic_billing_bypass.py" ]; then
+  curl -fsSL https://raw.githubusercontent.com/kristianvastveit/hermes-claude-auth/main/install-remote.sh | bash
+else
+  echo "✅ hermes-claude-auth patch already installed"
+fi
+
+# Point Hermes at Opus 4.7 via the Anthropic provider.
+hermes config set model.provider anthropic        || true
+hermes config set model.default anthropic/claude-opus-4-7 || true
+
+# Critical: clear ANTHROPIC_API_KEY. Max plan does not include API credits, and
+# if an API key is present Hermes will prefer it and fail with HTTP 400
+# "credit balance too low". The patch routes through the OAuth token instead.
+if [ -f "$HOME/.hermes/.env" ]; then
+  /usr/bin/sed -i '' '/^ANTHROPIC_API_KEY=/d' "$HOME/.hermes/.env" || true
+fi
+hermes config set ANTHROPIC_API_KEY "" || true
+
+# Verify end-to-end: this exercises the patched OAuth path against Opus.
+echo "🧪 Verifying Hermes ↔ Claude Max..."
+if timeout 30 hermes chat -q "Reply with just OK" 2>&1 | grep -qi "ok"; then
+  echo "✅ Hermes is talking to Claude Max via OAuth"
+else
+  echo "⚠️  Hermes verification did not return OK. Check:"
+  echo "    - security find-generic-password -s 'Claude Code-credentials' -w"
+  echo "    - ls ~/.hermes/patches/anthropic_billing_bypass.py"
+  echo "    - hermes config get model.provider model.default"
+fi
 
 # P7: Vault restore
 echo "── P7: vault restore"

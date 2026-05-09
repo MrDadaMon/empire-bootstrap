@@ -27,6 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/MrDadaMon/empire-bootstrap/main/ins
 | P3 | `gh auth login` — device-code flow in browser |
 | P5 | Paste BW `client_id`, then `client_secret` (hidden) |
 | P5 | Type Bitwarden master password at the `bw unlock` prompt |
+| P5.5 | `claude auth login --claudeai` — browser flow to authorize your Claude Max/Pro subscription (only on first run; skipped if Keychain already has it) |
 | P10 | `sudo` password for `pmset` (24/7 lid-closed) |
 
 Everything else is automatic.
@@ -35,9 +36,14 @@ Everything else is automatic.
 
 P0 Xcode CLT · P1 Homebrew · P2 brew formulas + casks · P3 GitHub auth ·
 P4 clone Bible + Overlay repos · P5 Bitwarden login + `bw_sync_env.sh` →
-materializes `~/.env.empire` and per-key secrets · P6 Hermes agent ·
-P7 vault restore (age-decrypt) · P8 reranker venv · P9 launchd jobs (13)
-· P10 pmset 24/7 · P11 smoke test · P12 Telegram "Mac bootstrap ✅".
+materializes `~/.env.empire` and per-key secrets · P5.5 Claude Code CLI +
+Max-subscription OAuth into Keychain · P6 Hermes agent ·
+P6.5 hermes-claude-auth patch (works around Anthropic's April-2025 OAuth
+lockdown) + sets `model.provider=anthropic`, `model.default=anthropic/claude-opus-4-7`,
+clears `ANTHROPIC_API_KEY` (Max plan has no API credits), and verifies with
+a live `hermes chat` round-trip · P7 vault restore (age-decrypt) ·
+P8 reranker venv · P9 launchd jobs (13) · P10 pmset 24/7 · P11 smoke test ·
+P12 Telegram "Mac bootstrap ✅".
 
 ## Verify after run
 
