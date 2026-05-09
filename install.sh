@@ -120,6 +120,41 @@ source "$HOME/.env.empire"
 grep -q '.env.empire' "$HOME/.zshrc" 2>/dev/null || \
   echo '[ -f ~/.env.empire ] && source ~/.env.empire' >> "$HOME/.zshrc"
 
+# Append a "computed paths" block to ~/.env.empire so every overlay tool
+# resolves to this user's $HOME, not the original Linux author's. This is
+# the safety net for any code that uses ${VAR:-/home/maestro/...} fallback
+# patterns — VAR is now always set, so the fallback never fires. Idempotent:
+# only writes if the marker line is absent.
+if ! grep -q '^# === EMPIRE COMPUTED PATHS ===' "$HOME/.env.empire" 2>/dev/null; then
+  cat >> "$HOME/.env.empire" <<EOF
+
+# === EMPIRE COMPUTED PATHS ===
+# Auto-injected by empire-bootstrap install.sh — survives bw_sync_env reruns
+# because that script only writes the body of the BW 'empire-env' note above.
+# Resolves cross-platform path drift: Linux author wrote /home/maestro/...,
+# Macs need /Users/<user>/..., VPS may differ. \$HOME is always correct.
+export SUPA_WORK_ROOT="\$HOME/supa-work"
+export AI_AGENT_BIBLE_ROOT="\$HOME/supa-work/AI-Agent-Bible"
+export OVERLAY_ROOT="\$HOME/supa-work/Mejia-Supa-Hermes-Overlay"
+export MEJIA_VAULT_ROOT="\$HOME/supa-work/Mejia-Vault"
+export MEJIA_VAULT="\$HOME/supa-work/Mejia-Vault"
+export VAULT_BACKUP_DIR="\$HOME/supa-work/mejia-vault-encrypted"
+export HERMES_REPO_ROOT="\$HOME/supa-work"
+export HERMES_DECISION_LOG="\$HOME/supa-work/AI-Agent-Bible/04-Shared/decision-log"
+export HERMES_SKILLS_DIR="\$HOME/.hermes/skills"
+export HERMES_CACHE_DIR="\$HOME/.hermes/cache"
+export HERMES_MCP_AUDIT_DIR="\$HOME/.hermes/audit/mcp"
+export NLM_BUNDLE_DIR="\$HOME/supa-work/notebooklm-bundles"
+export NLM_DIGEST="\$HOME/supa-work/Mejia-Vault/wiki/notebooklm-digest.md"
+EOF
+  echo "✅ injected EMPIRE COMPUTED PATHS into ~/.env.empire"
+  # Re-source so the rest of this install run sees them
+  # shellcheck disable=SC1090
+  source "$HOME/.env.empire"
+else
+  echo "✅ EMPIRE COMPUTED PATHS already present in ~/.env.empire"
+fi
+
 # ---------- P5.5: Claude Code CLI + Max-subscription OAuth ----------
 # Installs the Claude Code CLI and authenticates it against your Max/Pro
 # subscription. The OAuth credential lands in macOS Keychain under
