@@ -64,8 +64,8 @@ check "P6 ~/.hermes/.env"                "ls \$HOME/.hermes/.env"
 # P6.5
 check "P6.5 hermes-claude-auth patch"    "ls \$HOME/.hermes/patches/anthropic_billing_bypass.py"
 check "P6.5 sitecustomize hook"          "ls \$HOME/.hermes/hermes-agent/venv/lib/python*/site-packages/sitecustomize.py 2>/dev/null | head -1"
-check "P6.5 model.provider=anthropic"    "hermes config show 2>/dev/null | grep -iE 'provider.*anthropic|anthropic.*provider' | head -1"
-check "P6.5 model.default=opus-4-7"      "hermes config show 2>/dev/null | grep -i 'opus' | head -1"
+check "P6.5 anthropic provider"          "hermes config show 2>/dev/null | grep -E 'Model:.*anthropic' | head -1"
+check "P6.5 model=opus-4-7"              "hermes config show 2>/dev/null | grep -i 'opus' | head -1"
 if grep -q '^ANTHROPIC_API_KEY=.\+' "$HOME/.hermes/.env" 2>/dev/null; then
   bad "P6.5 ANTHROPIC_API_KEY cleared" "still set — Max plan has no API credits, will 400. Remove from ~/.hermes/.env"
 else
