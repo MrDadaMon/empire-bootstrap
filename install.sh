@@ -65,7 +65,7 @@ grep -q '.env.empire' "$HOME/.zshrc" 2>/dev/null || \
 
 # P6: Hermes / Claude Code agent
 echo "── P6: Hermes agent"
-pip3 install --upgrade hermes-agent || pip3 install --upgrade claude-code || true
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 
 # P7: Vault restore
 echo "── P7: vault restore"
