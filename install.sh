@@ -201,6 +201,36 @@ if [ -f "$SOUL_SRC" ]; then
   fi
 fi
 
+# Install AGENTS.md at ~/supa-work/ — read by Hermes every session as the
+# empire's pointer file. Per bible-as-dna, this contains identity + startup
+# directive + scope only; rules live in the Bible.
+AGENTS_SRC="$OVERLAY/AGENTS.md"
+AGENTS_DST="$HOME/supa-work/AGENTS.md"
+if [ -f "$AGENTS_SRC" ]; then
+  if [ ! -f "$AGENTS_DST" ] || ! grep -q "Empire Operating Context" "$AGENTS_DST" 2>/dev/null; then
+    cp "$AGENTS_SRC" "$AGENTS_DST"
+    echo "✅ installed empire AGENTS.md"
+  else
+    echo "✅ empire AGENTS.md already in place"
+  fi
+fi
+
+# Sync empire skills from overlay into ~/.hermes/skills/devops/ if they
+# don't exist yet. This makes a fresh node start with the same procedural
+# memory the principal's MacBook has — no waiting for the agent to "discover"
+# the empire on its own.
+EMPIRE_SKILLS_SRC="$OVERLAY/skills/devops"
+EMPIRE_SKILLS_DST="$HOME/.hermes/skills/devops"
+if [ -d "$EMPIRE_SKILLS_SRC" ]; then
+  mkdir -p "$EMPIRE_SKILLS_DST"
+  for skill in empire-bootstrap-operator empire-doctrine empire-architecture empire-voice empire-vault-protocol; do
+    if [ -d "$EMPIRE_SKILLS_SRC/$skill" ] && [ ! -d "$EMPIRE_SKILLS_DST/$skill" ]; then
+      cp -r "$EMPIRE_SKILLS_SRC/$skill" "$EMPIRE_SKILLS_DST/"
+      echo "✅ installed empire skill: $skill"
+    fi
+  done
+fi
+
 # Verify end-to-end: this exercises the patched OAuth path against Opus.
 echo "🧪 Verifying Hermes ↔ Claude Max..."
 if timeout 30 hermes chat -q "Reply with just OK" 2>&1 | grep -qi "ok"; then
