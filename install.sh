@@ -41,10 +41,13 @@ echo "── P2: brew packages"
 brew install git gh age bitwarden-cli jq python@3.12 node ripgrep
 brew install --cask ghostty raycast rectangle bitwarden || true
 
-if ! command -v bw &>/dev/null; then
-  echo "❌ bw (Bitwarden CLI) not in PATH after brew install. Run: brew install bitwarden-cli"
-  exit 1
-fi
+for cmd in git gh age bw jq python3 node rg; do
+  if ! command -v $cmd &>/dev/null; then
+    echo "❌ $cmd missing after brew install"
+    exit 1
+  fi
+done
+echo "✅ All brew packages verified in PATH"
 
 # P3: GitHub auth
 echo "── P3: gh auth login (interactive)"
@@ -61,14 +64,35 @@ cd "$HOME/supa-work"
 
 # P5: Bitwarden bootstrap
 echo "── P5: Bitwarden"
-echo "🔐 Logging into Bitwarden (email + master password)..."
-echo "   You'll be prompted for: email, master password, optional 2FA"
-bw login || true
+echo "🔐 Bitwarden login (email + master password)"
+echo "   You'll be prompted for: email, master password, and 2FA code if enabled"
+bw login || echo "Already logged in, continuing..."
+echo "🔓 Unlocking vault..."
+export BW_SESSION=$(bw unlock --raw)
+if [ -z "$BW_SESSION" ]; then
+  echo "❌ BW unlock failed"
+  exit 1
+fi
+echo "✅ BW unlocked"
 bash "$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/bw_sync_env.sh"
 # shellcheck disable=SC1090
 source "$HOME/.env.empire"
 grep -q '.env.empire' "$HOME/.zshrc" 2>/dev/null || \
   echo '[ -f ~/.env.empire ] && source ~/.env.empire' >> "$HOME/.zshrc"
+
+echo "── P5.5: Claude Code CLI (Anthropic OAuth)"
+if ! command -v claude &>/dev/null; then
+  npm install -g @anthropic-ai/claude-code || sudo npm install -g @anthropic-ai/claude-code
+fi
+echo "✅ Claude Code installed: $(claude --version 2>&1 | head -1)"
+echo ""
+echo "⚠️  After Hermes setup wizard starts, you'll need to:"
+echo "   1. Pick option 1 (Claude Pro/Max OAuth)"
+echo "   2. In a SEPARATE terminal, run: claude setup-token"
+echo "   3. Authorize in browser, copy the sk-ant-oat-... token"
+echo "   4. Paste it back into the hermes wizard"
+echo ""
+read -p "Press Enter to continue to Hermes installer..."
 
 # P6: Hermes / Claude Code agent
 echo "── P6: Hermes agent"
