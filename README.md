@@ -5,8 +5,10 @@ One-line bootstrap for a fresh Mac → fully operational empire.
 ## The one-line command
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MrDadaMon/empire-bootstrap/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MrDadaMon/empire-bootstrap/main/install.sh -o ~/empire-install.sh && bash ~/empire-install.sh
 ```
+
+> We download-then-run instead of `curl | bash` because Homebrew and `sudo` need interactive stdin.
 
 ## Prerequisites (do these BEFORE running)
 

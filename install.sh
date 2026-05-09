@@ -20,7 +20,15 @@ xcode-select --install 2>/dev/null || true
 # P1: Homebrew
 echo "── P1: Homebrew"
 if ! command -v brew &>/dev/null; then
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if [ -t 0 ]; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  else
+    echo "❌ ERROR: Homebrew install needs interactive stdin for sudo prompt."
+    echo "   You ran this via 'curl | bash' which occupies stdin."
+    echo "   Fix: download then run:"
+    echo "     curl -fsSL https://raw.githubusercontent.com/MrDadaMon/empire-bootstrap/main/install.sh -o ~/empire-install.sh && bash ~/empire-install.sh"
+    exit 1
+  fi
 fi
 if [[ -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -81,8 +89,14 @@ bash "$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/install_launchd_jobs.sh"
 
 # P10: 24/7 lid-closed
 echo "── P10: pmset (sudo)"
-sudo pmset -c sleep 0 disksleep 0 displaysleep 10 powernap 1 || true
-sudo pmset -c lidwake 0 || true
+if [ -t 0 ]; then
+  sudo pmset -c sleep 0 disksleep 0 displaysleep 10 powernap 1 || true
+  sudo pmset -c lidwake 0 || true
+else
+  echo "⚠️  Skipping pmset (needs interactive sudo). Run manually after bootstrap:"
+  echo "    sudo pmset -c sleep 0 disksleep 0 displaysleep 10 powernap 1"
+  echo "    sudo pmset -c lidwake 0"
+fi
 
 # P11: Smoke test
 echo "── P11: smoke test"
