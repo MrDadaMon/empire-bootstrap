@@ -85,12 +85,14 @@ if [ "$LOADED" -ge 13 ]; then
 else
   bad "P9 launchd com.mejia.* jobs" "only $LOADED loaded (expected ≥13). Re-run: bash \$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/install_launchd_jobs.sh"
 fi
-# P10
-SLEEP_VAL=$(pmset -g 2>/dev/null | awk '/^ sleep/{print $2; exit}')
+# P10 — check the AC ("charger") profile specifically. macOS pmset has separate
+# AC/Battery/UPS profiles; -c sets AC. The plain `pmset -g` shows whichever is
+# currently active, which false-fails on laptops running on battery during the check.
+SLEEP_VAL=$(pmset -g custom 2>/dev/null | awk '/^AC Power:/{ac=1; next} /^[A-Z]/{ac=0} ac && /^ sleep/ {print $2; exit}')
 if [ "$SLEEP_VAL" = "0" ]; then
-  ok "P10 pmset sleep=0" "ok"
+  ok "P10 pmset (AC) sleep=0" "ok"
 else
-  bad "P10 pmset sleep=0" "currently '$SLEEP_VAL'. Run: sudo pmset -c sleep 0 disksleep 0 displaysleep 10 powernap 1"
+  bad "P10 pmset (AC) sleep=0" "AC profile sleep='$SLEEP_VAL'. Run: sudo pmset -c sleep 0 disksleep 0 displaysleep 10 powernap 1"
 fi
 # P12
 check "P12 telegram_alert.sh"            "ls \$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/telegram_alert.sh"
