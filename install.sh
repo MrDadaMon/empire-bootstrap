@@ -211,10 +211,13 @@ else
 fi
 
 # Point Hermes at Opus 4.7 via the Anthropic provider.
-# NOTE: top-level key is `model` (not model.default); `model.provider` is the
-# nested provider override. Hermes config set takes dotted keys.
-hermes config set model.provider anthropic                || true
-hermes config set model anthropic/claude-opus-4-7         || true
+# CRITICAL: use `model.default` (NOT bare `model`). Setting bare `model`
+# writes a flat string and obliterates the nested {provider, default} form,
+# which kills the gateway with "No inference provider configured".
+# The hermes-config-guard launchd job (see P9.5) self-heals this if it
+# happens, but we shouldn't plant the bug in the first place.
+hermes config set model.provider anthropic                  || true
+hermes config set model.default  anthropic/claude-opus-4-7  || true
 
 # Critical: clear ANTHROPIC_API_KEY. Max plan does not include API credits;
 # if a key is present Hermes prefers it and fails with HTTP 400
@@ -290,6 +293,27 @@ bash "$OVERLAY/scripts/bootstrap.sh" || true
 # repo if missing, then generates plists with --all-hermes and loads them.
 echo "── P9: launchd jobs"
 bash "$OVERLAY/scripts/install_launchd_jobs.sh"
+
+# ---------- P9.25: cron-env Python deps ----------
+# Cron prompts call bare `python3 /Users/mejia/.../sweep_tenancy.py` etc.,
+# which resolves to /usr/bin/python3 (the macOS system Python). The system
+# Python ships without PyYAML, but tenancy.py imports yaml. Without this
+# step, the tenancy-sweep cron fires "ModuleNotFoundError: No module named
+# 'yaml'" forever. Install into the user site-packages (no sudo, no system
+# pollution). Idempotent: pip is a no-op if already present.
+echo "── P9.25: cron-env Python deps (pyyaml for /usr/bin/python3)"
+if ! /usr/bin/python3 -c "import yaml" 2>/dev/null; then
+  /usr/bin/python3 -m pip install --user --quiet pyyaml || \
+    echo "⚠️  failed to install pyyaml — tenancy-sweep cron will error" >&2
+fi
+/usr/bin/python3 -c "import yaml; print(f'✅ /usr/bin/python3 has pyyaml {yaml.__version__}')" || true
+
+# ---------- P9.5: overlay-shipped launchd plists ----------
+# Standalone WatchPaths/keep-alive plists from the overlay (not cron-derived).
+# Currently: hermes-config-guard (self-heals ~/.hermes/config.yaml when
+# anything writes a flat `model:` string instead of nested provider/default).
+echo "── P9.5: overlay launchd (config-guard)"
+bash "$OVERLAY/scripts/install_overlay_launchd.sh" || true
 
 # ---------- P10: 24/7 lid-closed ----------
 # Verify pmset actually applied (the previous version printed a warning and
