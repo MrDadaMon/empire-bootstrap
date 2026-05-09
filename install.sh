@@ -41,6 +41,11 @@ echo "── P2: brew packages"
 brew install git gh age bitwarden-cli jq python@3.12 node ripgrep
 brew install --cask ghostty raycast rectangle bitwarden || true
 
+if ! command -v bw &>/dev/null; then
+  echo "❌ bw (Bitwarden CLI) not in PATH after brew install. Run: brew install bitwarden-cli"
+  exit 1
+fi
+
 # P3: GitHub auth
 echo "── P3: gh auth login (interactive)"
 if ! gh auth status &>/dev/null; then
@@ -56,15 +61,9 @@ cd "$HOME/supa-work"
 
 # P5: Bitwarden bootstrap
 echo "── P5: Bitwarden"
-if [[ -z "${BW_CLIENTID:-}" ]]; then
-  read -r -p "Bitwarden API client_id: " BW_CLIENTID
-fi
-if [[ -z "${BW_CLIENTSECRET:-}" ]]; then
-  read -r -s -p "Bitwarden API client_secret: " BW_CLIENTSECRET
-  echo
-fi
-export BW_CLIENTID BW_CLIENTSECRET
-bw login --apikey || true
+echo "🔐 Logging into Bitwarden (email + master password)..."
+echo "   You'll be prompted for: email, master password, optional 2FA"
+bw login || true
 bash "$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/bw_sync_env.sh"
 # shellcheck disable=SC1090
 source "$HOME/.env.empire"
