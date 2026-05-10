@@ -201,12 +201,26 @@ echo "✅ hermes on PATH: $(command -v hermes)"
 # ---------- P6.5: Wire Hermes to Claude Max (April-2025 OAuth lockdown) ----------
 # Anthropic patched their API on 2025-04-04 to reject OAuth requests from any
 # client other than Claude Code itself. The hermes-claude-auth patch restores
-echo "── P6.5: Hermes model configuration"
-# Set the model provider and default. Configuration only — no billing bypass
-# or OAuth bridges needed (those were Pass 22-24, now removed in clean slate).
-hermes config set model.provider deepseek 2>/dev/null || true
-hermes config set model.default deepseek/deepseek-v4-pro 2>/dev/null || true
-echo "✅ model configured (deepseek/deepseek-v4-pro)"
+echo "── P6.5: LLM router + Opus proxy"
+# Install the OAuth proxy (routes Max subscription through Anthropic API)
+mkdir -p "$HOME/.hermes/proxy"
+cp "$OVERLAY/proxy/cloaked-proxy.py" "$HOME/.hermes/proxy/cloaked-proxy.py"
+cp "$OVERLAY/proxy/com.mejia.opus-proxy.plist" "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist"
+chmod +x "$HOME/.hermes/proxy/cloaked-proxy.py"
+launchctl unload "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/null || true
+launchctl load "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/null || true
+echo "✅ Opus proxy installed (:8318)"
+
+# Sync OAuth credentials from Keychain to file (proxy reads from file)
+security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null > "$HOME/.claude/.credentials.json" || true
+
+# Set up LLM router: Opus via proxy (primary) → DeepSeek (fallback)
+hermes config set model.provider anthropic 2>/dev/null || true
+hermes config set model.default claude-opus-4-7 2>/dev/null || true
+hermes config set model.base_url http://127.0.0.1:8318 2>/dev/null || true
+hermes config set ANTHROPIC_API_KEY sk-ant-api03-dummy0000000000000000000000000000000000000000000000000000000000000000 2>/dev/null || true
+hermes config set fallback_providers '[{"provider":"deepseek","model":"deepseek-v4-pro"}]' 2>/dev/null || true
+echo "✅ LLM router: Opus (proxy) → DeepSeek (fallback)"
 
 # Install the canonical empire SOUL.md if the user hasn't customized.
 SOUL_SRC="$OVERLAY/SOUL.md"
