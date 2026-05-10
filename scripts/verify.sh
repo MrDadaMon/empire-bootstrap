@@ -85,15 +85,6 @@ if [ "$LOADED" -ge 13 ]; then
 else
   bad "P9 launchd com.mejia.* jobs" "only $LOADED loaded (expected ≥13). Re-run: bash \$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/install_launchd_jobs.sh"
 fi
-# P6.5b — OAuth token bridge (Keychain → .env for launchd daemons)
-TOKEN_REFRESH_LABEL="com.mejia.refresh-anthropic-token"
-if launchctl list 2>/dev/null | grep -q "$TOKEN_REFRESH_LABEL"; then
-  ok "P6.5b token refresh bridge" "running"
-else
-  bad "P6.5b token refresh bridge" "not loaded. Run: launchctl load ~/Library/LaunchAgents/com.mejia.refresh-anthropic-token.plist"
-fi
-check "P6.5b refresh script present"     "ls \$HOME/.hermes/scripts/refresh_anthropic_token.sh"
-
 # P10 — check the AC ("charger") profile specifically. macOS pmset has separate
 # AC/Battery/UPS profiles; -c sets AC. The plain `pmset -g` shows whichever is
 # currently active, which false-fails on laptops running on battery during the check.

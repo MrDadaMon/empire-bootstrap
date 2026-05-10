@@ -201,106 +201,12 @@ echo "✅ hermes on PATH: $(command -v hermes)"
 # ---------- P6.5: Wire Hermes to Claude Max (April-2025 OAuth lockdown) ----------
 # Anthropic patched their API on 2025-04-04 to reject OAuth requests from any
 # client other than Claude Code itself. The hermes-claude-auth patch restores
-echo "── P6.5: hermes-claude-auth bypass + DeepSeek auxiliary + gateway wrapper"
-
-# Copy our empire-patched billing bypass (includes auto-refresh hook for
-# expired Keychain tokens + DeepSeek auxiliary routing)
-if [ ! -f "$HOME/.hermes/patches/anthropic_billing_bypass.py" ] || \
-   ! grep -q "Auto-refreshed expired Keychain token" "$HOME/.hermes/patches/anthropic_billing_bypass.py" 2>/dev/null; then
-  mkdir -p "$HOME/.hermes/patches"
-  cp "$OVERLAY/patches/anthropic_billing_bypass.py" "$HOME/.hermes/patches/anthropic_billing_bypass.py"
-  echo "✅ installed patched billing bypass (auto-refresh + DeepSeek aux routing)"
-else
-  echo "✅ billing bypass already empire-patched"
-fi
-
-# Set ALL auxiliary tasks to DeepSeek (vision, web_extract, compression,
-# title, search, browser_vision). Without this, the auxiliary client tries
-# to use the main provider (Anthropic/OAuth) through a code path the billing
-# bypass does NOT intercept, producing 'No Anthropic credentials found' warnings.
-if ! grep -q "auxiliary:" ~/.hermes/config.yaml 2>/dev/null && \
-   command -v python3 >/dev/null 2>&1; then
-  python3 -c "
-import yaml
-p = '$HOME/.hermes/config.yaml'
-with open(p) as f: cfg = yaml.safe_load(f)
-cfg.setdefault('auxiliary', {})
-for task in ['vision','web_extract','compression','title','search','browser_vision']:
-    cfg.setdefault(task, {})
-    if isinstance(cfg['auxiliary'].get(task), dict):
-        cfg['auxiliary'][task]['provider'] = 'deepseek'
-with open(p,'w') as f: yaml.safe_dump(cfg, f, default_flow_style=None, sort_keys=False)
-"
-  echo "✅ auxiliary tasks set to DeepSeek"
-fi
-
-# Install gateway-start.sh wrapper (injects Keychain ANTHROPIC_TOKEN + all
-# API keys from .env.empire before launching the gateway daemon).
-cp "$OVERLAY/scripts/gateway-start.sh" "$HOME/.hermes/gateway-start.sh"
-chmod +x "$HOME/.hermes/gateway-start.sh"
-echo "✅ gateway-start.sh wrapper installed"
-
-# ---------- P6.5b: OAuth token bridge (Keychain → .env) ----------
-# macOS launchd daemons CANNOT read the user's Keychain. This LaunchAgent
-# (which CAN) reads the Anthropic OAuth token every 7200s and writes it
-# to ~/.hermes/.env where all consumers (gateway, cron, CLI) find it.
-# One script serves EVERY bot on this node — no per-bot duplication.
-cp "$OVERLAY/scripts/refresh_anthropic_token.sh" "$HOME/.hermes/scripts/refresh_anthropic_token.sh"
-chmod +x "$HOME/.hermes/scripts/refresh_anthropic_token.sh"
-
-TOKEN_REFRESH_LABEL="com.mejia.refresh-anthropic-token"
-if ! launchctl list 2>/dev/null | grep -q "$TOKEN_REFRESH_LABEL"; then
-  cat > "$HOME/Library/LaunchAgents/${TOKEN_REFRESH_LABEL}.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>$TOKEN_REFRESH_LABEL</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>$HOME/.hermes/scripts/refresh_anthropic_token.sh</string>
-    </array>
-    <key>StartInterval</key>
-    <integer>7200</integer>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>$HOME/.hermes/logs/token-refresh.log</string>
-    <key>StandardErrorPath</key>
-    <string>$HOME/.hermes/logs/token-refresh.log</string>
-</dict>
-</plist>
-PLIST
-  launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${TOKEN_REFRESH_LABEL}.plist" 2>/dev/null || \
-    launchctl load "$HOME/Library/LaunchAgents/${TOKEN_REFRESH_LABEL}.plist" 2>/dev/null
-  echo "✅ ANTHROPIC_TOKEN bridge installed (Keychain→.env, every 2h)"
-else
-  echo "✅ ANTHROPIC_TOKEN bridge already installed"
-fi
-
-# Prime the token immediately so the gateway has one from boot.
-echo "── P6.5b: priming ANTHROPIC_TOKEN for gateway"
-bash "$HOME/.hermes/scripts/refresh_anthropic_token.sh" 2>/dev/null || true
-
-# Point Hermes at Opus 4.7 via the Anthropic provider.
-# CRITICAL: use `model.default` (NOT bare `model`). Setting bare `model`
-# writes a flat string and obliterates the nested {provider, default} form,
-# which kills the gateway with "No inference provider configured".
-# The hermes-config-guard launchd job (see P9.5) self-heals this if it
-# happens, but we shouldn't plant the bug in the first place.
-hermes config set model.provider anthropic                  || true
-hermes config set model.default  anthropic/claude-opus-4-7  || true
-
-# Critical: clear ANTHROPIC_API_KEY. Max plan does not include API credits;
-# if a key is present Hermes prefers it and fails with HTTP 400
-# "credit balance too low". The patch routes through the OAuth token instead.
-if [ -f "$HOME/.hermes/.env" ]; then
-  /usr/bin/sed -i '' '/^ANTHROPIC_API_KEY=/d' "$HOME/.hermes/.env" || true
-fi
-hermes config set ANTHROPIC_API_KEY "" || true
+echo "── P6.5: Hermes model configuration"
+# Set the model provider and default. Configuration only — no billing bypass
+# or OAuth bridges needed (those were Pass 22-24, now removed in clean slate).
+hermes config set model.provider deepseek 2>/dev/null || true
+hermes config set model.default deepseek/deepseek-v4-pro 2>/dev/null || true
+echo "✅ model configured (deepseek/deepseek-v4-pro)"
 
 # Install the canonical empire SOUL.md if the user hasn't customized.
 SOUL_SRC="$OVERLAY/SOUL.md"
