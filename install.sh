@@ -222,6 +222,11 @@ hermes config set ANTHROPIC_API_KEY sk-ant-api03-dummy00000000000000000000000000
 hermes config set fallback_providers '[{"provider":"deepseek","model":"deepseek-v4-pro"}]' 2>/dev/null || true
 echo "✅ LLM router: Opus (proxy) → DeepSeek (fallback)"
 
+# Pin Anthropic provider to proxy so TUI model switch preserves base_url
+hermes config set providers.anthropic.base_url http://127.0.0.1:8318 2>/dev/null || true
+hermes config set providers.anthropic.api_key sk-ant-api03-dummy0000000000000000000000000000000000000000000000000000000000000000 2>/dev/null || true
+echo "✅ Anthropic provider pinned to proxy"
+
 # Install the canonical empire SOUL.md if the user hasn't customized.
 SOUL_SRC="$OVERLAY/SOUL.md"
 SOUL_DST="$HOME/.hermes/SOUL.md"
