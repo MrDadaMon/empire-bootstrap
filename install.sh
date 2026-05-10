@@ -240,10 +240,50 @@ cp "$OVERLAY/scripts/gateway-start.sh" "$HOME/.hermes/gateway-start.sh"
 chmod +x "$HOME/.hermes/gateway-start.sh"
 echo "✅ gateway-start.sh wrapper installed"
 
-# IMPORTANT: Do NOT set ANTHROPIC_TOKEN in ~/.hermes/.env. The billing
-# bypass auto-refreshes OAuth tokens from Keychain / credential file
-# automatically. An env var would short-circuit that logic and cause
-# "No Anthropic credentials found" 3 hours later when the token expires.
+# ---------- P6.5b: OAuth token bridge (Keychain → .env) ----------
+# macOS launchd daemons CANNOT read the user's Keychain. This LaunchAgent
+# (which CAN) reads the Anthropic OAuth token every 7200s and writes it
+# to ~/.hermes/.env where all consumers (gateway, cron, CLI) find it.
+# One script serves EVERY bot on this node — no per-bot duplication.
+cp "$OVERLAY/scripts/refresh_anthropic_token.sh" "$HOME/.hermes/scripts/refresh_anthropic_token.sh"
+chmod +x "$HOME/.hermes/scripts/refresh_anthropic_token.sh"
+
+TOKEN_REFRESH_LABEL="com.mejia.refresh-anthropic-token"
+if ! launchctl list 2>/dev/null | grep -q "$TOKEN_REFRESH_LABEL"; then
+  cat > "$HOME/Library/LaunchAgents/${TOKEN_REFRESH_LABEL}.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>$TOKEN_REFRESH_LABEL</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>$HOME/.hermes/scripts/refresh_anthropic_token.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>7200</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$HOME/.hermes/logs/token-refresh.log</string>
+    <key>StandardErrorPath</key>
+    <string>$HOME/.hermes/logs/token-refresh.log</string>
+</dict>
+</plist>
+PLIST
+  launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${TOKEN_REFRESH_LABEL}.plist" 2>/dev/null || \
+    launchctl load "$HOME/Library/LaunchAgents/${TOKEN_REFRESH_LABEL}.plist" 2>/dev/null
+  echo "✅ ANTHROPIC_TOKEN bridge installed (Keychain→.env, every 2h)"
+else
+  echo "✅ ANTHROPIC_TOKEN bridge already installed"
+fi
+
+# Prime the token immediately so the gateway has one from boot.
+echo "── P6.5b: priming ANTHROPIC_TOKEN for gateway"
+bash "$HOME/.hermes/scripts/refresh_anthropic_token.sh" 2>/dev/null || true
 
 # Point Hermes at Opus 4.7 via the Anthropic provider.
 # CRITICAL: use `model.default` (NOT bare `model`). Setting bare `model`
