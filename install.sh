@@ -201,14 +201,44 @@ echo "✅ hermes on PATH: $(command -v hermes)"
 # ---------- P6.5: Wire Hermes to Claude Max (April-2025 OAuth lockdown) ----------
 # Anthropic patched their API on 2025-04-04 to reject OAuth requests from any
 # client other than Claude Code itself. The hermes-claude-auth patch restores
-# compatibility by injecting the billing-header signature + system-prompt
-# shape Anthropic now requires, hooked in via sitecustomize.py.
-echo "── P6.5: hermes-claude-auth patch + Hermes Max wiring"
-if [ ! -f "$HOME/.hermes/patches/anthropic_billing_bypass.py" ]; then
-  curl -fsSL https://raw.githubusercontent.com/kristianvastveit/hermes-claude-auth/main/install-remote.sh | bash
+echo "── P6.5: hermes-claude-auth bypass + DeepSeek auxiliary + gateway wrapper"
+
+# Copy our empire-patched billing bypass (includes auto-refresh hook for
+# expired Keychain tokens + DeepSeek auxiliary routing)
+if [ ! -f "$HOME/.hermes/patches/anthropic_billing_bypass.py" ] || \
+   ! grep -q "Auto-refreshed expired Keychain token" "$HOME/.hermes/patches/anthropic_billing_bypass.py" 2>/dev/null; then
+  mkdir -p "$HOME/.hermes/patches"
+  cp "$OVERLAY/patches/anthropic_billing_bypass.py" "$HOME/.hermes/patches/anthropic_billing_bypass.py"
+  echo "✅ installed patched billing bypass (auto-refresh + DeepSeek aux routing)"
 else
-  echo "✅ hermes-claude-auth patch already installed"
+  echo "✅ billing bypass already empire-patched"
 fi
+
+# Set ALL auxiliary tasks to DeepSeek (vision, web_extract, compression,
+# title, search, browser_vision). Without this, the auxiliary client tries
+# to use the main provider (Anthropic/OAuth) through a code path the billing
+# bypass does NOT intercept, producing 'No Anthropic credentials found' warnings.
+if ! grep -q "auxiliary:" ~/.hermes/config.yaml 2>/dev/null && \
+   command -v python3 >/dev/null 2>&1; then
+  python3 -c "
+import yaml
+p = '$HOME/.hermes/config.yaml'
+with open(p) as f: cfg = yaml.safe_load(f)
+cfg.setdefault('auxiliary', {})
+for task in ['vision','web_extract','compression','title','search','browser_vision']:
+    cfg.setdefault(task, {})
+    if isinstance(cfg['auxiliary'].get(task), dict):
+        cfg['auxiliary'][task]['provider'] = 'deepseek'
+with open(p,'w') as f: yaml.safe_dump(cfg, f, default_flow_style=None, sort_keys=False)
+"
+  echo "✅ auxiliary tasks set to DeepSeek"
+fi
+
+# Install gateway-start.sh wrapper (injects Keychain ANTHROPIC_TOKEN + all
+# API keys from .env.empire before launching the gateway daemon).
+cp "$OVERLAY/scripts/gateway-start.sh" "$HOME/.hermes/gateway-start.sh"
+chmod +x "$HOME/.hermes/gateway-start.sh"
+echo "✅ gateway-start.sh wrapper installed"
 
 # Point Hermes at Opus 4.7 via the Anthropic provider.
 # CRITICAL: use `model.default` (NOT bare `model`). Setting bare `model`
