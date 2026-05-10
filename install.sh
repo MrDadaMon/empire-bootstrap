@@ -240,6 +240,46 @@ cp "$OVERLAY/scripts/gateway-start.sh" "$HOME/.hermes/gateway-start.sh"
 chmod +x "$HOME/.hermes/gateway-start.sh"
 echo "✅ gateway-start.sh wrapper installed"
 
+# ---------- P6.5b: ANTHROPIC_TOKEN auto-refresh cron ----------
+# OAuth tokens expire every ~3 hours. This launchd job calls
+# refresh_anthropic_token.sh every 7200 seconds to keep
+# ANTHROPIC_TOKEN fresh in ~/.hermes/.env. Without this, the
+# gateway's OAuth authentication silently goes stale.
+cp "$OVERLAY/scripts/refresh_anthropic_token.sh" "$HOME/.hermes/scripts/refresh_anthropic_token.sh"
+chmod +x "$HOME/.hermes/scripts/refresh_anthropic_token.sh"
+
+if ! launchctl list | grep -q "com.mejia.refresh-anthropic-token" 2>/dev/null; then
+  cat > "$HOME/Library/LaunchAgents/com.mejia.refresh-anthropic-token.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.mejia.refresh-anthropic-token</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>$HOME/.hermes/scripts/refresh_anthropic_token.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>7200</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$HOME/.hermes/logs/token-refresh.log</string>
+    <key>StandardErrorPath</key>
+    <string>$HOME/.hermes/logs/token-refresh.log</string>
+</dict>
+</plist>
+PLIST
+  launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.mejia.refresh-anthropic-token.plist" 2>/dev/null || \
+    launchctl load "$HOME/Library/LaunchAgents/com.mejia.refresh-anthropic-token.plist" 2>/dev/null
+  echo "✅ ANTHROPIC_TOKEN auto-refresh installed (every 2 hours)"
+else
+  echo "✅ ANTHROPIC_TOKEN auto-refresh already installed"
+fi
+
 # Point Hermes at Opus 4.7 via the Anthropic provider.
 # CRITICAL: use `model.default` (NOT bare `model`). Setting bare `model`
 # writes a flat string and obliterates the nested {provider, default} form,
