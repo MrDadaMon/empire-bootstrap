@@ -85,7 +85,7 @@ if [ "$LOADED" -ge 13 ]; then
 else
   bad "P9 launchd com.mejia.* jobs" "only $LOADED loaded (expected ≥13). Re-run: bash \$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/install_launchd_jobs.sh"
 fi
-# P6.5 — Opus proxy
+LOADED=$(launchctl list 2>/dev/null | awk '$3 ~ /^com\\.mejia\\./ {n++} END{print n+0}')\nif [ \"$LOADED\" -ge 13 ]; then\n  ok \"P9 launchd com.mejia.* jobs\" \"$LOADED loaded\"\nelse\n  bad \"P9 launchd com.mejia.* jobs\" \"only $LOADED loaded (expected ≥13). Re-run: bash \\$HOME/supa-work/Mejia-Supa-Hermes-Overlay/scripts/install_launchd_jobs.sh\"\nfi\n# P6.5 — Opus proxy
 check "P6.5 proxy listening :8318"        "lsof -i :8318 2>/dev/null | grep -q LISTEN"
 check "P6.5 proxy launchd loaded"          "launchctl list 2>/dev/null | grep -q com.mejia.opus-proxy"
 check "P6.5 credential file present"       "ls \$HOME/.claude/.credentials.json"
