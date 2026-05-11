@@ -61,11 +61,15 @@ fi
 check "P6 hermes CLI"                    "command -v hermes"
 check "P6 ~/.hermes dir"                 "ls -d \$HOME/.hermes"
 check "P6 ~/.hermes/.env"                "ls \$HOME/.hermes/.env"
-# P6.5
-check "P6.5 hermes-claude-auth patch"    "ls \$HOME/.hermes/patches/anthropic_billing_bypass.py"
-check "P6.5 sitecustomize hook"          "ls \$HOME/.hermes/hermes-agent/venv/lib/python*/site-packages/sitecustomize.py 2>/dev/null | head -1"
+# P6.5 — cloaked proxy + provider config
+check "P6.5 cloaked-proxy LaunchAgent"   "ls \$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist"
+check "P6.5 cloaked-proxy script"        "ls \$HOME/.hermes/proxy/cloaked-proxy.py"
+check "P6.5 proxy reachable :8318"       "curl -fsS --max-time 3 http://127.0.0.1:8318/v1/models >/dev/null"
+check "P6.5 Anthropic OAuth credentials" "ls \$HOME/.claude/.credentials.json"
 check "P6.5 anthropic provider"          "hermes config show 2>/dev/null | grep -E 'Model:.*anthropic' | head -1"
 check "P6.5 model=opus-4-7"              "hermes config show 2>/dev/null | grep -i 'opus' | head -1"
+check "P6.5 DeepSeek key in .env"        "grep -q '^DEEPSEEK_API_KEY=' \$HOME/.hermes/.env"
+check "P6.5 MiniMax key in .env"         "grep -q '^MINIMAX_API_KEY=' \$HOME/.hermes/.env"
 if grep -q '^ANTHROPIC_API_KEY=.\+' "$HOME/.hermes/.env" 2>/dev/null; then
   bad "P6.5 ANTHROPIC_API_KEY cleared" "still set — Max plan has no API credits, will 400. Remove from ~/.hermes/.env"
 else

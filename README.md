@@ -39,11 +39,13 @@ P2 brew formulas + casks · P3 GitHub auth · P4 clone Bible + Overlay repos ·
 P5 Bitwarden login + `bw_sync_env.sh` (3-attempt master-password retry) →
 materializes `~/.env.empire` · P5.5 Claude Code CLI + `claude auth login --claudeai`
 into Keychain · P6 Hermes agent (PATH-injected immediately so post-install
-steps work) · P6.5 hermes-claude-auth patch (works around Anthropic's
-April-2025 OAuth lockdown), sets `model.provider=anthropic` +
-`model.default=anthropic/claude-opus-4-7`, clears `ANTHROPIC_API_KEY`
-(Max plan has no API credits → would otherwise return HTTP 400), installs
-canonical `SOUL.md`, runs a live `hermes chat` round-trip · P7 vault restore
+steps work) · P6.5 cloaked-proxy install (127.0.0.1:8318 LaunchAgent — works
+around Anthropic's April-2025 OAuth lockdown by masquerading as Claude Code
+when forwarding /v1/messages), sets `model.provider=anthropic` +
+`model.default=claude-opus-4-7` + `model.context_length=1000000`, wires
+DeepSeek + MiniMax as auxiliary providers (compression/title/triage/curator
+each routed to the cheapest capable model), installs canonical `SOUL.md`,
+runs a live `hermes chat` round-trip · P7 vault restore
 (age-decrypt) · P8 overlay bootstrap (creates main venv, MCP skeleton,
 ~/.hermes/* dirs; reranker venv removed — see overlay commit history) ·
 P9 launchd jobs (seeds `~/.hermes/cron/jobs.json` from this repo, then loads

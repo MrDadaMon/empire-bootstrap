@@ -159,7 +159,7 @@ fi
 # Installs the Claude Code CLI and authenticates it against your Max/Pro
 # subscription. The OAuth credential lands in macOS Keychain under
 # "Claude Code-credentials" and is the source of truth used by the
-# hermes-claude-auth patch in P6.5.
+# cloaked proxy in P6.5.
 echo "── P5.5: Claude Code CLI + Max-subscription OAuth"
 if ! command -v claude &>/dev/null; then
   npm install -g @anthropic-ai/claude-code || sudo npm install -g @anthropic-ai/claude-code
@@ -198,34 +198,82 @@ if ! command -v hermes &>/dev/null; then
 fi
 echo "✅ hermes on PATH: $(command -v hermes)"
 
-# ---------- P6.5: Wire Hermes to Claude Max (April-2025 OAuth lockdown) ----------
-# Anthropic patched their API on 2025-04-04 to reject OAuth requests from any
-# client other than Claude Code itself. The hermes-claude-auth patch restores
+# ---------- P6.5: LLM router (Opus via proxy + DeepSeek/MiniMax aux) ----------
+# Anthropic patched their API in 2025-04 to refuse OAuth requests from any
+# client that doesn't masquerade as Claude Code itself. Our cloaked proxy
+# (cloaked-proxy.py) sits on 127.0.0.1:8318, accepts Hermes' /v1/messages
+# calls, scrubs Hermes-specific identifiers, injects the Claude Code agent
+# identity system block, and forwards to api.anthropic.com with the OAuth
+# bearer from ~/.claude/.credentials.json. Auto-refreshes silently.
+#
+# Provider lineup written into ~/.hermes/config.yaml:
+#   main          → anthropic (Opus 4.7) via proxy
+#   fallback      → DeepSeek v4 Pro
+#   auxiliary.*   → per-role mapping (bulk → DeepSeek, judgment → MiniMax,
+#                                     vision → main provider)
 echo "── P6.5: LLM router + Opus proxy"
-# Install the OAuth proxy (routes Max subscription through Anthropic API)
+
+# Install the cloaked proxy (routes Max subscription through Anthropic API)
 mkdir -p "$HOME/.hermes/proxy"
 cp "$OVERLAY/proxy/cloaked-proxy.py" "$HOME/.hermes/proxy/cloaked-proxy.py"
 cp "$OVERLAY/proxy/com.mejia.opus-proxy.plist" "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist"
 chmod +x "$HOME/.hermes/proxy/cloaked-proxy.py"
 launchctl unload "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/null || true
 launchctl load "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/null || true
-echo "✅ Opus proxy installed (:8318)"
+echo "✅ Opus cloaked proxy installed (:8318)"
 
-# Sync OAuth credentials from Keychain to file (proxy reads from file)
+# Sync OAuth credentials from Keychain → file (proxy reads from file)
+mkdir -p "$HOME/.claude"
 security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null > "$HOME/.claude/.credentials.json" || true
 
-# Set up LLM router: Opus via proxy (primary) → DeepSeek (fallback)
-hermes config set model.provider anthropic 2>/dev/null || true
-hermes config set model.default claude-opus-4-7 2>/dev/null || true
-hermes config set model.base_url http://127.0.0.1:8318 2>/dev/null || true
-hermes config set ANTHROPIC_API_KEY sk-ant-api03-dummy0000000000000000000000000000000000000000000000000000000000000000 2>/dev/null || true
-hermes config set fallback_providers '[{"provider":"deepseek","model":"deepseek-v4-pro"}]' 2>/dev/null || true
-echo "✅ LLM router: Opus (proxy) → DeepSeek (fallback)"
+# Write config.yaml provider + aux routing in one Python call (yaml-safe)
+"$HOME/.hermes/hermes-agent/venv/bin/python" <<'PY'
+import yaml, os
+from pathlib import Path
+cfg_path = Path(os.path.expanduser("~/.hermes/config.yaml"))
+cfg = yaml.safe_load(cfg_path.read_text()) if cfg_path.exists() else {}
 
-# Pin Anthropic provider to proxy so TUI model switch preserves base_url
-hermes config set providers.anthropic.base_url http://127.0.0.1:8318 2>/dev/null || true
-hermes config set providers.anthropic.api_key sk-ant-api03-dummy0000000000000000000000000000000000000000000000000000000000000000 2>/dev/null || true
-echo "✅ Anthropic provider pinned to proxy"
+# Main model — Opus 4.7 via proxy with explicit 1M context (bypasses probe-down)
+cfg.setdefault("model", {}).update({
+    "provider": "anthropic",
+    "default":  "claude-opus-4-7",
+    "base_url": "http://127.0.0.1:8318",
+    "context_length":         1_000_000,
+    "config_context_length":  1_000_000,
+    "max_tokens": 64_000,
+})
+
+# Provider lineup — anthropic via proxy + deepseek + minimax
+providers = cfg.setdefault("providers", {})
+providers["anthropic"] = {"base_url": "http://127.0.0.1:8318", "api_key": "sk-ant...0000"}
+providers["deepseek"]  = {"base_url": "https://api.deepseek.com", "api_key": "${DEEPSEEK_API_KEY}"}
+providers["minimax"]   = {"base_url": "https://api.minimax.io/v1", "api_key": "${MINIMAX_API_KEY}"}
+
+# Fallback chain — if Opus fails, drop to DeepSeek v4 Pro
+cfg["fallback_providers"] = [{"provider": "deepseek", "model": "deepseek-v4-pro"}]
+
+# Auxiliary routing — cost-aware per-role
+ROLES = {
+    "compression":       ("deepseek", "deepseek-v4-pro"),
+    "web_extract":       ("deepseek", "deepseek-v4-pro"),
+    "session_search":    ("deepseek", "deepseek-v4-pro"),
+    "title_generation":  ("deepseek", "deepseek-v4-flash"),
+    "skills_hub":        ("deepseek", "deepseek-v4-flash"),
+    "mcp":               ("deepseek", "deepseek-v4-flash"),
+    "triage_specifier":  ("minimax",  "MiniMax-M2"),
+    "approval":          ("minimax",  "MiniMax-M2"),
+    "curator":           ("minimax",  "MiniMax-M2"),
+}
+aux = cfg.setdefault("auxiliary", {})
+for role, (provider, model) in ROLES.items():
+    section = aux.setdefault(role, {})
+    section["provider"] = provider
+    section["model"]    = model
+    section["context_length"] = 1_000_000  # belt-suspenders for probe-down
+
+cfg_path.write_text(yaml.dump(cfg, default_flow_style=False, sort_keys=False))
+print("✅ Hermes config.yaml: main=Opus@proxy, fallback=DeepSeek, aux=DeepSeek/MiniMax")
+PY
 
 # Install the canonical empire SOUL.md if the user hasn't customized.
 SOUL_SRC="$OVERLAY/SOUL.md"
@@ -275,9 +323,9 @@ if timeout 30 hermes chat -q "Reply with just OK" 2>&1 | grep -qi "ok"; then
   echo "✅ Hermes is talking to Claude Max via OAuth"
 else
   echo "⚠️  Hermes verification did not return OK. Check:"
-  echo "    - security find-generic-password -s 'Claude Code-credentials' -w"
-  echo "    - ls ~/.hermes/patches/anthropic_billing_bypass.py"
-  echo "    - hermes config get model.provider model.default"
+  echo "    - launchctl list | grep opus-proxy        (proxy running?)"
+  echo "    - curl http://127.0.0.1:8318/v1/models    (proxy reachable?)"
+  echo "    - hermes doctor                           (DeepSeek + MiniMax keys?)"
 fi
 
 # ---------- P7: Vault restore ----------
