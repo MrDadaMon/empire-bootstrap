@@ -265,26 +265,36 @@ cfg.setdefault("model", {}).update({
     "max_tokens": 64_000,
 })
 
-# Provider lineup — anthropic via proxy + deepseek + minimax
+# Provider lineup — anthropic via proxy + minimax + gemini + openrouter (Pass 30)
+# Direct DeepSeek was removed in Pass 30 (out of credits, never replenished).
+# OpenRouter umbrella covers free DeepSeek + Llama + nemotron variants.
 providers = cfg.setdefault("providers", {})
-providers["anthropic"] = {"base_url": "http://127.0.0.1:8318", "api_key": "sk-ant...0000"}
-providers["deepseek"]  = {"base_url": "https://api.deepseek.com", "api_key": "${DEEPSEEK_API_KEY}"}
-providers["minimax"]   = {"base_url": "https://api.minimax.io/v1", "api_key": "${MINIMAX_API_KEY}"}
+providers["anthropic"]  = {"base_url": "http://127.0.0.1:8318", "api_key": "sk-ant...0000"}
+providers["minimax"]    = {"base_url": "https://api.minimax.io/v1", "api_key": "${MINIMAX_API_KEY}"}
+providers["gemini"]     = {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": "${GEMINI_API_KEY}"}
+providers["openrouter"] = {"base_url": "https://openrouter.ai/api/v1", "api_key": "${OPENROUTER_API_KEY}"}
 
-# Fallback chain — if Opus fails, drop to DeepSeek v4 Pro
-cfg["fallback_providers"] = [{"provider": "deepseek", "model": "deepseek-v4-pro"}]
+# Fallback chain on Opus failure: MiniMax M2.7 -> Gemini 2.5 Flash -> OpenRouter free
+cfg["fallback_providers"] = [
+    {"provider": "minimax",    "model": "MiniMax-M2.7"},
+    {"provider": "gemini",     "model": "gemini-2.5-flash"},
+    {"provider": "openrouter", "model": "nvidia/nemotron-3-super-120b-a12b:free"},
+]
 
-# Auxiliary routing — cost-aware per-role
+# Auxiliary routing — Pass 30 lineup
+# Tier-2 reasoning roles -> MiniMax M2.7 (subscription workhorse)
+# High-volume trivial    -> Gemini Flash Lite (free tier, plenty of quota)
+# Vision                 -> auto (resolves to main = Opus)
 ROLES = {
-    "compression":       ("deepseek", "deepseek-v4-pro"),
-    "web_extract":       ("deepseek", "deepseek-v4-pro"),
-    "session_search":    ("deepseek", "deepseek-v4-pro"),
-    "title_generation":  ("deepseek", "deepseek-v4-flash"),
-    "skills_hub":        ("deepseek", "deepseek-v4-flash"),
-    "mcp":               ("deepseek", "deepseek-v4-flash"),
-    "triage_specifier":  ("minimax",  "MiniMax-M2"),
-    "approval":          ("minimax",  "MiniMax-M2"),
-    "curator":           ("minimax",  "MiniMax-M2"),
+    "compression":       ("minimax", "MiniMax-M2.7"),
+    "web_extract":       ("minimax", "MiniMax-M2.7"),
+    "session_search":    ("minimax", "MiniMax-M2.7"),
+    "title_generation":  ("gemini",  "gemini-2.5-flash-lite"),
+    "skills_hub":        ("gemini",  "gemini-2.5-flash-lite"),
+    "mcp":               ("gemini",  "gemini-2.5-flash-lite"),
+    "triage_specifier":  ("minimax", "MiniMax-M2.7"),
+    "approval":          ("minimax", "MiniMax-M2.7"),
+    "curator":           ("minimax", "MiniMax-M2.7"),
 }
 aux = cfg.setdefault("auxiliary", {})
 for role, (provider, model) in ROLES.items():

@@ -71,8 +71,10 @@ check "P6.5 ~/.local/bin/claude symlink" "test -L \$HOME/.local/bin/claude"
 check "P6.5 Anthropic OAuth credentials" "ls \$HOME/.claude/.credentials.json"
 check "P6.5 anthropic provider"          "hermes config show 2>/dev/null | grep -E 'Model:.*anthropic' | head -1"
 check "P6.5 model=opus-4-7"              "hermes config show 2>/dev/null | grep -i 'opus' | head -1"
-check "P6.5 DeepSeek key in .env"        "grep -q '^DEEPSEEK_API_KEY=' \$HOME/.hermes/.env"
+check "P6.5 DeepSeek key in .env"        "grep -q '^DEEPSEEK_API_KEY=' \$HOME/.hermes/.env || true"
 check "P6.5 MiniMax key in .env"         "grep -q '^MINIMAX_API_KEY=' \$HOME/.hermes/.env"
+check "P6.5 Gemini key in .env"          "grep -q '^GEMINI_API_KEY=' \$HOME/.hermes/.env"
+check "P6.5 OpenRouter key in .env"      "grep -q '^OPENROUTER_API_KEY=' \$HOME/.hermes/.env"
 if grep -q '^ANTHROPIC_API_KEY=.\+' "$HOME/.hermes/.env" 2>/dev/null; then
   bad "P6.5 ANTHROPIC_API_KEY cleared" "still set — Max plan has no API credits, will 400. Remove from ~/.hermes/.env"
 else
