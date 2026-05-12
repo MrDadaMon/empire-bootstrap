@@ -222,6 +222,28 @@ launchctl unload "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/
 launchctl load "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/null || true
 echo "✅ Opus cloaked proxy installed (:8318)"
 
+# Install the token watchdog — checks every 30min and auto-refreshes OAuth
+# before it dies. Without this, leaving Hermes idle for 8+ hours kills the
+# token in the dark (proxy only refreshes on incoming traffic).
+cp "$OVERLAY/proxy/token-watchdog.sh" "$HOME/.hermes/proxy/token-watchdog.sh"
+chmod +x "$HOME/.hermes/proxy/token-watchdog.sh"
+cp "$OVERLAY/proxy/com.mejia.token-watchdog.plist" "$HOME/Library/LaunchAgents/com.mejia.token-watchdog.plist"
+launchctl unload "$HOME/Library/LaunchAgents/com.mejia.token-watchdog.plist" 2>/dev/null || true
+launchctl load "$HOME/Library/LaunchAgents/com.mejia.token-watchdog.plist" 2>/dev/null || true
+echo "✅ Token watchdog installed (every 30min)"
+
+# Ensure ~/.local/bin/claude symlink exists (the proxy's auto-refresh hardcodes
+# this path; on macOS, Homebrew installs to /opt/homebrew/bin/claude).
+mkdir -p "$HOME/.local/bin"
+if [ -e "/opt/homebrew/bin/claude" ] && [ ! -e "$HOME/.local/bin/claude" ]; then
+  ln -sf "/opt/homebrew/bin/claude" "$HOME/.local/bin/claude"
+  echo "✅ ~/.local/bin/claude symlink created"
+elif [ -L "$HOME/.local/bin/claude" ]; then
+  echo "✅ ~/.local/bin/claude symlink already present"
+else
+  echo "⚠️  Could not symlink claude binary — proxy auto-refresh may fail"
+fi
+
 # Sync OAuth credentials from Keychain → file (proxy reads from file)
 mkdir -p "$HOME/.claude"
 security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null > "$HOME/.claude/.credentials.json" || true
