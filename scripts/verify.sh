@@ -83,6 +83,9 @@ else
   ok "P6.5 ANTHROPIC_API_KEY cleared" "ok"
 fi
 check "P6.5 SOUL.md installed"           "grep -l 'Empire SOUL' \$HOME/.hermes/SOUL.md 2>/dev/null && echo present"
+# P6.6 — cron jobs.json (canonical seed) + long-lived token presence
+check "P6.6 cron/jobs.json present"      "ls \$HOME/.hermes/cron/jobs.json"
+check "P6.6 cron jobs.json populated"    "size=\$(wc -c < \$HOME/.hermes/cron/jobs.json); [ \$size -gt 100 ] && echo \"\$size bytes\""
 # P7
 check "P7 mejia-vault-encrypted clone"   "ls -d \$HOME/supa-work/mejia-vault-encrypted"
 check "P7 Mejia-Vault extracted"         "ls -d \$HOME/supa-work/Mejia-Vault"

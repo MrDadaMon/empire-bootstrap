@@ -361,6 +361,72 @@ else
   echo "    - hermes doctor                           (DeepSeek + MiniMax keys?)"
 fi
 
+# ---------- P6.6: Cron jobs.json seed + long-lived OAuth token ----------
+# Two things that bit us on May 12-13 and must not bite a fresh machine:
+#
+# 1. ~/.hermes/cron/jobs.json being missing turns every cron LaunchAgent into
+#    a zombie (fires daily, finds no matching job, returns 0 silently). Seed
+#    it from the canonical copy in empire-bootstrap/scripts/jobs.json.
+#
+# 2. Hermes' auth defaults to the short-lived OAuth refresh path (8hr tokens
+#    that the `claude -p` side-effect-refresh hack only sometimes rotates).
+#    The proxy supports a LONG_LIVED_TOKEN mode via `claude setup-token` —
+#    1-year tokens, no refresh cycle, no fake-refresh failure mode. This
+#    block prompts the operator to set it up.
+echo "── P6.6: cron jobs.json seed + long-lived OAuth token"
+
+mkdir -p "$HOME/.hermes/cron"
+if [ -f "$HOME/.hermes/cron/jobs.json" ]; then
+  echo "✅ ~/.hermes/cron/jobs.json already present"
+else
+  # Fetch canonical jobs.json from empire-bootstrap. Try local clone first
+  # (if operator has it), then fall back to raw GitHub URL.
+  JOBS_SEED_LOCAL="$HOME/supa-work/empire-bootstrap/scripts/jobs.json"
+  JOBS_SEED_URL="https://raw.githubusercontent.com/MrDadaMon/empire-bootstrap/main/scripts/jobs.json"
+  if [ -f "$JOBS_SEED_LOCAL" ]; then
+    cp "$JOBS_SEED_LOCAL" "$HOME/.hermes/cron/jobs.json"
+    echo "✅ Seeded ~/.hermes/cron/jobs.json from local empire-bootstrap"
+  elif curl -fsSL "$JOBS_SEED_URL" -o "$HOME/.hermes/cron/jobs.json"; then
+    echo "✅ Seeded ~/.hermes/cron/jobs.json from $JOBS_SEED_URL"
+  else
+    echo "⚠️  Could not seed ~/.hermes/cron/jobs.json — cron LaunchAgents will zombie until populated"
+  fi
+  chmod 600 "$HOME/.hermes/cron/jobs.json" 2>/dev/null || true
+fi
+
+# Long-lived token presence check (does NOT auto-generate — that's interactive)
+if grep -q "^CLAUDE_CODE_OAUTH_TOKEN=" "$HOME/.hermes/.env" 2>/dev/null; then
+  echo "✅ CLAUDE_CODE_OAUTH_TOKEN is set in ~/.hermes/.env (proxy will use LONG_LIVED_TOKEN mode)"
+else
+  cat <<'LONGLIVED_INSTRUCTIONS'
+
+⚠️  RECOMMENDED: set up a long-lived OAuth token to avoid 8-hour refresh failures.
+
+Steps:
+  1. Run:  claude setup-token
+     (opens platform.claude.com, generates a 1-year sk-ant-oat01-... token)
+
+  2. Open Bitwarden -> empire-env item -> click "+ New custom field":
+     - Name: CLAUDE_CODE_OAUTH_TOKEN
+     - Type: Hidden
+     - Value: paste the token from step 1
+     - Save
+
+  3. Run:  hermes-bw-sync
+     (or: BW_SESSION=$(bw unlock --raw) bash $OVERLAY/scripts/bw_sync_env.sh)
+
+  4. Restart the proxy:
+     launchctl unload ~/Library/LaunchAgents/com.mejia.opus-proxy.plist
+     launchctl load   ~/Library/LaunchAgents/com.mejia.opus-proxy.plist
+
+  5. Verify:  hermes-bw-status   should show "auth mode: LONG_LIVED_TOKEN"
+
+Without this, Hermes falls back to short-lived (8hr) OAuth tokens which
+have a known refresh-failure mode (Claude CLI 2.1.137 doesn't reliably
+rotate tokens on `claude -p` invocation — see hermes-recovery-runbook skill).
+LONGLIVED_INSTRUCTIONS
+fi
+
 # ---------- P7: Vault restore ----------
 echo "── P7: vault restore"
 bash "$OVERLAY/scripts/vault_restore_decrypt.sh" || true
