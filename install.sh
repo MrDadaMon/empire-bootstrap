@@ -216,8 +216,9 @@ echo "── P6.5: LLM router + Opus proxy"
 # Install the cloaked proxy (routes Max subscription through Anthropic API)
 mkdir -p "$HOME/.hermes/proxy"
 cp "$OVERLAY/proxy/cloaked-proxy.py" "$HOME/.hermes/proxy/cloaked-proxy.py"
+cp "$OVERLAY/proxy/proxy-launcher.sh" "$HOME/.hermes/proxy/proxy-launcher.sh"
 cp "$OVERLAY/proxy/com.mejia.opus-proxy.plist" "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist"
-chmod +x "$HOME/.hermes/proxy/cloaked-proxy.py"
+chmod +x "$HOME/.hermes/proxy/cloaked-proxy.py" "$HOME/.hermes/proxy/proxy-launcher.sh"
 launchctl unload "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/null || true
 launchctl load "$HOME/Library/LaunchAgents/com.mejia.opus-proxy.plist" 2>/dev/null || true
 echo "✅ Opus cloaked proxy installed (:8318)"
