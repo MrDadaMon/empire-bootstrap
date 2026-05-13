@@ -285,9 +285,15 @@ cfg["fallback_providers"] = [
 # Auxiliary routing — Pass 30 lineup
 # Tier-2 reasoning roles -> MiniMax M2.7 (subscription workhorse)
 # High-volume trivial    -> Gemini Flash Lite (free tier, plenty of quota)
+# Compression            -> Opus 4.7 (load-bearing — compresses conversation
+#                          memory; quality of compression affects every
+#                          subsequent response in the session. Don't cheap
+#                          out on this one. Updated 2026-05-13 after we
+#                          realized MiniMax was lossy for strategic
+#                          conversations.)
 # Vision                 -> auto (resolves to main = Opus)
 ROLES = {
-    "compression":       ("minimax", "MiniMax-M2.7"),
+    "compression":       ("anthropic", "claude-opus-4-7"),
     "web_extract":       ("minimax", "MiniMax-M2.7"),
     "session_search":    ("minimax", "MiniMax-M2.7"),
     "title_generation":  ("gemini",  "gemini-2.5-flash-lite"),
