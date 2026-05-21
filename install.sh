@@ -433,6 +433,105 @@ rotate tokens on `claude -p` invocation — see hermes-recovery-runbook skill).
 LONGLIVED_INSTRUCTIONS
 fi
 
+# ---------- P6.7: Pi coding harness + empire overlay + entity overlays ----------
+# Per External Tool Intake Protocol v1.0 Tier 2: vendor Pi installed via npm,
+# empire overlay applied on top (HarnessPort + VendorPiAdapter + doctrine pins).
+# Pi binary `pi` is on PATH after this. Empire entities invoke it via the adapter.
+echo "── P6.7: Pi coding harness + empire overlay"
+
+# Pin to the exact version recorded in the intake ledger.
+PI_VERSION="0.75.4"
+PI_COMMIT="b0c5554902ac94edc36b99e62318a327aa88d2da"
+
+if ! command -v pi &>/dev/null; then
+  npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}" --ignore-scripts \
+    || sudo npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}" --ignore-scripts
+fi
+if command -v pi &>/dev/null; then
+  PI_INSTALLED=$(pi --version 2>&1 | head -1)
+  echo "✅ Pi installed: ${PI_INSTALLED} (pinned ${PI_VERSION} / ${PI_COMMIT})"
+else
+  echo "⚠️  Pi install failed — entity coding workflows will not function"
+fi
+
+# Empire Pi overlay — HarnessPort, VendorPiAdapter, doctrine pin, refusal rules.
+# Sourced from the overlay repo (Mejia-Supa-Hermes-Overlay ships it).
+PI_OVERLAY_SRC="$OVERLAY/pi-overlay"
+PI_OVERLAY_DST="$HOME/.pi/overlay"
+if [ -d "$PI_OVERLAY_SRC" ]; then
+  mkdir -p "$PI_OVERLAY_DST"
+  # rsync if available, else cp -r (idempotent — preserves user edits)
+  if command -v rsync &>/dev/null; then
+    rsync -a --ignore-existing "$PI_OVERLAY_SRC/" "$PI_OVERLAY_DST/"
+  else
+    cp -rn "$PI_OVERLAY_SRC/." "$PI_OVERLAY_DST/" 2>/dev/null || true
+  fi
+  echo "✅ Pi empire overlay installed at $PI_OVERLAY_DST"
+else
+  echo "⚠️  $PI_OVERLAY_SRC not found in overlay repo — Pi will run without empire doctrine"
+fi
+mkdir -p "$HOME/.pi/sessions" "$HOME/.pi/_archive"
+
+# Entity overlay scaffolding — universal four-seat empire entities.
+# Per-CO additions are still a manual touchpoint (principal seeds those).
+ENTITY_SRC="$OVERLAY/entities"
+ENTITY_DST="$HOME/.hermes/empire/entities"
+if [ -d "$ENTITY_SRC" ]; then
+  mkdir -p "$ENTITY_DST"
+  for entity in heimdall camael michael nemos; do
+    if [ -d "$ENTITY_SRC/$entity" ] && [ ! -d "$ENTITY_DST/$entity" ]; then
+      cp -r "$ENTITY_SRC/$entity" "$ENTITY_DST/"
+      echo "✅ installed entity overlay: $entity"
+    fi
+  done
+fi
+
+# Council seat overlays.
+COUNCIL_SRC="$OVERLAY/council"
+COUNCIL_DST="$HOME/.hermes/empire/council"
+if [ -d "$COUNCIL_SRC" ]; then
+  mkdir -p "$COUNCIL_DST"
+  for seat in antidikos nemesis hephaestus daedalus; do
+    if [ -d "$COUNCIL_SRC/$seat" ] && [ ! -d "$COUNCIL_DST/$seat" ]; then
+      cp -r "$COUNCIL_SRC/$seat" "$COUNCIL_DST/"
+      echo "✅ installed council seat: $seat"
+    fi
+  done
+fi
+
+# Empire mirror clones — Pi + Hermes upstream fork escrows.
+# Cheap insurance: weekly cron syncs them; if upstream vanishes or hostile-forks
+# the empire keeps a known-good snapshot.
+MIRRORS_DIR="$HOME/supa-work/empire-mirrors"
+mkdir -p "$MIRRORS_DIR"
+for repo_spec in "pi.git:https://github.com/earendil-works/pi.git" \
+                 "hermes-agent.git:https://github.com/NousResearch/hermes-agent.git"; do
+  repo_dir="${repo_spec%%:*}"
+  repo_url="${repo_spec#*:}"
+  if [ ! -d "$MIRRORS_DIR/$repo_dir" ]; then
+    echo "── mirroring $repo_url"
+    (cd "$MIRRORS_DIR" && git clone --mirror "$repo_url" "$repo_dir") \
+      || echo "⚠️  mirror clone failed for $repo_url"
+  fi
+done
+echo "✅ Empire mirror escrow in $MIRRORS_DIR"
+
+# Empire mirror sync script + weekly cron (silent unless upstream changed).
+MIRROR_SCRIPT_SRC="$OVERLAY/scripts/empire_mirror_sync.sh"
+MIRROR_SCRIPT_DST="$HOME/.hermes/scripts/empire_mirror_sync.sh"
+if [ -f "$MIRROR_SCRIPT_SRC" ]; then
+  mkdir -p "$HOME/.hermes/scripts"
+  cp "$MIRROR_SCRIPT_SRC" "$MIRROR_SCRIPT_DST"
+  chmod +x "$MIRROR_SCRIPT_DST"
+  echo "✅ empire mirror sync script installed"
+fi
+
+# Doctrine drift watcher cron + baseline.
+DRIFT_REG="$HOME/.hermes/empire/watchers/register-cron.sh"
+if [ -f "$DRIFT_REG" ]; then
+  bash "$DRIFT_REG" || echo "⚠️  drift watcher cron registration failed"
+fi
+
 # ---------- P7: Vault restore ----------
 echo "── P7: vault restore"
 bash "$OVERLAY/scripts/vault_restore_decrypt.sh" || true
